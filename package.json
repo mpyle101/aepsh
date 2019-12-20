@@ -1,0 +1,22 @@
+{
+  "name": "aepsh",
+  "author": "Michael Pyle",
+  "version": "1.0.0",
+  "license": "MIT",
+  "description": "AEP interactive shell",
+  "main": "build/aepsh.js",
+  "scripts": {
+    "build": "tsc",
+    "lint": "tslint",
+    "start": "tsc && node build/aepsh.js"
+  },
+  "dependencies": {
+    "yargs": "^15.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^12.12.21",
+    "@types/yargs": "^13.0.3",
+    "tslint": "^5.20.1",
+    "typescript": "^3.7.3"
+  }
+}
