@@ -6,17 +6,17 @@
   "description": "AEP interactive shell",
   "main": "build/aepsh.js",
   "scripts": {
+    "aepsh": "node build/aepsh.js",
     "build": "tsc",
     "lint": "tslint",
     "start": "tsc && node build/aepsh.js"
   },
   "dependencies": {
     "axios": "^0.19.0",
-    "yargs": "^15.0.2"
+    "commander": "^4.0.1"
   },
   "devDependencies": {
     "@types/node": "^12.12.21",
-    "@types/yargs": "^13.0.3",
     "tslint": "^5.20.1",
     "typescript": "^3.7.3"
   }

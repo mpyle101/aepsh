@@ -2,14 +2,16 @@ import axios from 'axios'
 import { shell } from './shell'
 
 const app = shell('aepsh')
+
 app.prompt = 'aepsh> '
 app.set('session', 12345)
-app.cmd('users <name>', 'show user information', args => {
-  console.log('USERS', args.name, args.session)
+app.cmd('jester <name>', 'jester the tester', args => {
+  console.log('JESTER', args)
 })
-const route = app.use('create', 'create a schedule')
-route.cmd('schedule <name>', 'create a schedule', args => {
-  console.log('CREATE SCHEDULE', args.name, args.session)
+
+const route = app.use('create', 'GOD MODE!')
+route.cmd('jester <name>', 'create a tester', args => {
+  console.log('CREATE JESTER', args)
 })
 
 app.cmd(
@@ -27,13 +29,6 @@ app.cmd(
     }
 
     return Promise.resolve()
-  },
-  args => {
-    args.positional('host', {
-      describe: 'AEP server hostname',
-      type: 'string',
-      default: 'localhost'
-    })
   }
 )
 

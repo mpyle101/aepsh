@@ -1,8 +1,9 @@
 import readline from 'readline'
-import yargs from 'yargs/yargs'
+import * as cmdr from 'commander'
 
 const DEFAULT_PROMPT = '> '
 
+/*** shell ***/
 export const shell = (
   name: string,
   prompt = DEFAULT_PROMPT,
@@ -10,41 +11,41 @@ export const shell = (
   ostream = process.stdout
 ) => new Shell(name, prompt, istream, ostream)
 
+
+/*** Route ****/
 class Route {
-  private cmds: string[] = []
-  protected parser = yargs()
+  private cmds = new Map()
+  protected state = new Map()
+  protected parser = new cmdr.Command()
 
   constructor(cmd: string) {
     this.parser
-      .scriptName(cmd)
-      .exitProcess(false)
-      .command('$0', '', {}, this.unknown.bind(this))
+      .name(cmd)
+      .exitOverride(err => { throw err })
   }
+
+  init = (state: Map<string, any>) => this.state = state
 
   cmd(
-    cmd: string,
+    name: string,
     desc: string,
-    handler: (args: any) => void,
-    builder?: (args: any) => void
+    handler: (args: any) => void
   ) {
-    this.cmds.push(cmd)
-    return this.parser.command(cmd, desc, builder || {}, handler)
+    this.cmds.set(name, handler)
+    return this.parser
+      .command(name)
+      .description(desc)
+      .action(cmd => this.call(name, cmd))
   }
 
-  call(args, state) {
-    this.parser.parse(args._.slice(1), { ...state })
-  }
-
-  protected unknown(args) {
-    args._.length
-      ? console.log('Unknown sub-command:', args._[0])
-      : console.log('Sub-command required:', this.cmds)
-    this.parser.showHelp()
+  call(cmd: string, args: string[]) {
+    console.log(`cmd: ${cmd}, args: ${args}`)
   }
 }
 
+
+/*** Shell ****/
 class Shell extends Route {
-  private state = {}
   private rl: readline.Interface
 
   constructor(
@@ -56,18 +57,28 @@ class Shell extends Route {
     super(name)
 
     this.parser
-      .command('exit', 'exit the application', {}, () => process.exit(0))
-      .command('quit', 'exit the application', {}, () => process.exit(0))
+      .command('exit')
+      .description('exit the application')
+      .action(() => process.exit(0))
+
+    this.parser
+      .command('quit')
+      .description('exit the application')
+      .action(() => process.exit(0))
+
+    this.parser.on('command:*', () => console.log('invalid command'))
 
     this.rl = readline.createInterface(istream, ostream)
     this.rl.setPrompt(prompt)
 
     this.rl.on('close', () => process.exit())
     this.rl.on('line', async line => {
+      // Commander expects to be run via a node.js script.
+      const args = ['node', 'script', ...line.trim().split(/\s+/)]
       try {
-        await this.parser.parse(line.trim(), { ...this.state })
+        this.parser.parse(args)
       } catch (e) {
-        console.log(e)
+        // console.log(e)
       }
       this.rl.prompt()
     })
@@ -78,23 +89,19 @@ class Shell extends Route {
   }
 
   set(key: string, value: any) {
-    this.state[key] = value
+    this.state.set(key, value)
   }
 
-  run() {
-    this.parser.help()
-    this.rl.prompt()
-  }
+  run = () =>  this.rl.prompt()
 
-  use(cmd: string, desc: string) {
-    const route = new Route(cmd)
-    this.parser.command(cmd, desc, {}, args => route.call(args, this.state))
+  use(name: string, desc: string) {
+    const route = new Route(name)
+    route.init(this.state)
+    this.parser
+      .command(name)
+      .description(desc)
+      .action(cmd => route.call(name, cmd.parent.args))
+
     return route
-  }
-
-  protected unknown(args) {
-    if (args._.length) {
-      console.log('Unknown command:', args._[0])
-    }
   }
 }
