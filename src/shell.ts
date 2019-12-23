@@ -14,39 +14,24 @@ export const shell = (
 
 /*** Route ****/
 class Route {
-  private cmds = new Map()
-  protected state = new Map()
-  protected parser = new cmdr.Command()
-
-  constructor(cmd: string) {
-    this.parser
-      .name(cmd)
-      .exitOverride(err => { throw err })
-  }
-
-  init = (state: Map<string, any>) => this.state = state
+  constructor(private name: string, private shell: Shell) {}
 
   cmd(
     name: string,
     desc: string,
     handler: (args: any) => void
   ) {
-    this.cmds.set(name, handler)
-    return this.parser
-      .command(name)
-      .description(desc)
-      .action(cmd => this.call(name, cmd))
-  }
-
-  call(cmd: string, args: string[]) {
-    console.log(`cmd: ${cmd}, args: ${args}`)
+    this.shell.cmd(`${this.name}-${name}`, desc, handler)
   }
 }
 
 
 /*** Shell ****/
-class Shell extends Route {
+class Shell {
   private rl: readline.Interface
+  private cmds = new Map()
+  private state = new Map()
+  private parser = new cmdr.Command()
 
   constructor(
     name: string,
@@ -54,7 +39,13 @@ class Shell extends Route {
     istream: NodeJS.ReadStream,
     ostream: NodeJS.WriteStream
   ) {
-    super(name)
+    this.parser
+      .name(name)
+      .exitOverride(err => { throw err })
+
+    this.parser
+      .command('')
+      .action(() => {})
 
     this.parser
       .command('exit')
@@ -80,28 +71,30 @@ class Shell extends Route {
       } catch (e) {
         // console.log(e)
       }
-      this.rl.prompt()
+      this.run()
     })
   }
 
-  set prompt(prompt: string) {
-    this.rl.setPrompt(prompt)
-  }
+  run() { this.rl.prompt() }
+  set prompt(prompt: string) { this.rl.setPrompt(prompt) }
+  set(key: string, value: any) { this.state.set(key, value) }
+  use(name: string, desc: string) { return new Route(name, this) }
 
-  set(key: string, value: any) {
-    this.state.set(key, value)
-  }
-
-  run = () =>  this.rl.prompt()
-
-  use(name: string, desc: string) {
-    const route = new Route(name)
-    route.init(this.state)
-    this.parser
+  cmd(
+    name: string,
+    desc: string,
+    handler: (args: any) => void
+  ) {
+    this.cmds.set(name, handler)
+    return this.parser
       .command(name)
       .description(desc)
-      .action(cmd => route.call(name, cmd.parent.args))
+      .action((...args) => this.call(name, args))
+  }
 
-    return route
+  async call(cmd: string, args) {
+    console.log(`cmd: ${cmd}, args: ${args}`)
+    await this.cmds.get(cmd)(...args)
   }
 }
+

@@ -15,7 +15,7 @@ route.cmd('jester <name>', 'create a tester', args => {
 })
 
 app.cmd(
-  'connect <username|email> <password> [host]',
+  'connect <username> <password> [host]',
   'connect to an AEP server',
   async args => {
     const http = axios.create({ baseURL: `https://${args.host}/api/vi` })
