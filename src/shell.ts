@@ -21,9 +21,14 @@ class Route {
       .command('$0', '', {}, this.unknown.bind(this))
   }
 
-  use(cmd: string, desc: string, fn: (args: any) => void) {
+  cmd(
+    cmd: string,
+    desc: string,
+    handler: (args: any) => void,
+    builder?: (args: any) => void
+  ) {
     this.cmds.push(cmd)
-    this.parser.command(cmd, desc, {}, fn)
+    return this.parser.command(cmd, desc, builder || {}, handler)
   }
 
   call(args, state) {
@@ -58,9 +63,9 @@ class Shell extends Route {
     this.rl.setPrompt(prompt)
 
     this.rl.on('close', () => process.exit())
-    this.rl.on('line', line => {
+    this.rl.on('line', async line => {
       try {
-        this.parser.parse(line.trim(), { ...this.state })
+        await this.parser.parse(line.trim(), { ...this.state })
       } catch (e) {
         console.log(e)
       }
@@ -81,7 +86,7 @@ class Shell extends Route {
     this.rl.prompt()
   }
 
-  route(cmd: string, desc: string) {
+  use(cmd: string, desc: string) {
     const route = new Route(cmd)
     this.parser.command(cmd, desc, {}, args => route.call(args, this.state))
     return route

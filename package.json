@@ -11,6 +11,7 @@
     "start": "tsc && node build/aepsh.js"
   },
   "dependencies": {
+    "axios": "^0.19.0",
     "yargs": "^15.0.2"
   },
   "devDependencies": {
