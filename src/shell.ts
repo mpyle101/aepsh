@@ -1,7 +1,7 @@
 import readline from 'readline'
 import * as cmdr from 'commander'
 
-const DEFAULT_PROMPT = '> '
+const DEFAULT_PROMPT = 'sh> '
 
 /*** shell ***/
 export const shell = (
