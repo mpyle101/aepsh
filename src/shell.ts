@@ -1,7 +1,7 @@
 import readline from 'readline'
-import * as cmdr from 'commander'
+import yargs from 'yargs/yargs'
 
-const DEFAULT_PROMPT = 'sh> '
+const DEFAULT_PROMPT = '>> '
 
 /*** shell ***/
 export const shell = (
@@ -12,7 +12,7 @@ export const shell = (
 ) => new Shell(name, prompt, istream, ostream)
 
 
-/*** Route ****/
+/*** Route ***/
 class Route {
   constructor(private name: string, private shell: Shell) {}
 
@@ -21,17 +21,17 @@ class Route {
     desc: string,
     handler: (args: any) => void
   ) {
-    this.shell.cmd(`${this.name}-${name}`, desc, handler)
+    this.shell.cmd(`${this.name} ${name}`, desc, handler)
   }
 }
 
 
-/*** Shell ****/
+/*** Shell ***/
 class Shell {
   private rl: readline.Interface
   private cmds = new Map()
   private state = new Map()
-  private parser = new cmdr.Command()
+  private parser = yargs()
 
   constructor(
     name: string,
@@ -40,42 +40,36 @@ class Shell {
     ostream: NodeJS.WriteStream
   ) {
     this.parser
-      .name(name)
-      .exitOverride(err => { throw err })
+      .scriptName(name)
+      .exitProcess(false)
 
-    this.parser
-      .command('')
-      .action(() => {})
-
-    this.parser
-      .command('exit')
-      .description('exit the application')
-      .action(() => process.exit(0))
-
-    this.parser
-      .command('quit')
-      .description('exit the application')
-      .action(() => process.exit(0))
-
-    this.parser.on('command:*', () => console.log('invalid command'))
+    this.parser.command('$0', 'unknown command', {}, () => console.log('unknown command'))
+    this.parser.command('exit', 'exit the application', {}, () => process.exit(0))
+    this.parser.command('quit', 'exit the application', {}, () => process.exit(0))
 
     this.rl = readline.createInterface(istream, ostream)
     this.rl.setPrompt(prompt)
-
     this.rl.on('close', () => process.exit())
-    this.rl.on('line', async line => {
-      // Commander expects to be run via a node.js script.
-      const args = ['node', 'script', ...line.trim().split(/\s+/)]
+    this.rl.on('line', line => {
       try {
-        this.parser.parse(args)
+        const argv = this.parser.parse(line, (err, argv, output) => {
+          if (output) {
+            console.log(output)
+          }
+        })
+        console.log('ARGV', argv)
       } catch (e) {
-        // console.log(e)
+        //console.log(e)
       }
-      this.run()
+      this.rl.prompt()
     })
   }
 
-  run() { this.rl.prompt() }
+  run() { 
+    this.parser.help()
+    this.rl.prompt()
+  }
+
   set prompt(prompt: string) { this.rl.setPrompt(prompt) }
   set(key: string, value: any) { this.state.set(key, value) }
   use(name: string, desc: string) { return new Route(name, this) }
@@ -86,15 +80,12 @@ class Shell {
     handler: (args: any) => void
   ) {
     this.cmds.set(name, handler)
-    return this.parser
-      .command(name)
-      .description(desc)
-      .action((...args) => this.call(name, args))
+    return this.parser.command(name, desc, {}, args => this.call(name, args))
   }
 
-  async call(cmd: string, args) {
+  call(cmd: string, args) {
     console.log(`cmd: ${cmd}, args: ${args}`)
-    await this.cmds.get(cmd)(...args)
+    this.cmds.get(cmd)(args)
   }
 }
 

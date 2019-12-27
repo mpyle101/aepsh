@@ -6,12 +6,12 @@ const app = shell('aepsh')
 app.prompt = 'aepsh> '
 app.set('session', 12345)
 app.cmd('jester <name>', 'jester the tester', args => {
-  console.log('JESTER', args)
+  console.log('JESTER', args.name)
 })
 
 const route = app.use('create', 'GOD MODE!')
 route.cmd('jester <name>', 'create a tester', args => {
-  console.log('CREATE JESTER', args)
+  console.log('CREATE JESTER', args.name)
 })
 
 app.cmd(
