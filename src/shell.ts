@@ -5,11 +5,10 @@ const DEFAULT_PROMPT = '>> '
 
 /*** shell ***/
 export const shell = (
-  name: string,
   prompt = DEFAULT_PROMPT,
   istream = process.stdin,
   ostream = process.stdout
-) => new Shell(name, prompt, istream, ostream)
+) => new Shell(prompt, istream, ostream)
 
 
 /*** Route ***/
@@ -18,10 +17,11 @@ class Route {
 
   cmd(
     name: string,
+    args: string,
     desc: string,
     handler: (args: any) => void
   ) {
-    this.shell.cmd(`${this.name} ${name}`, desc, handler)
+    return this.shell.cmd(`${this.name} ${name}`, args, desc, handler)
   }
 }
 
@@ -34,30 +34,29 @@ class Shell {
   private parser = yargs()
 
   constructor(
-    name: string,
     prompt: string,
     istream: NodeJS.ReadStream,
     ostream: NodeJS.WriteStream
   ) {
     this.parser
-      .scriptName(name)
+      .scriptName('')
       .exitProcess(false)
 
-    this.parser.command('$0', 'unknown command', {}, () => console.log('unknown command'))
     this.parser.command('exit', 'exit the application', {}, () => process.exit(0))
     this.parser.command('quit', 'exit the application', {}, () => process.exit(0))
 
     this.rl = readline.createInterface(istream, ostream)
     this.rl.setPrompt(prompt)
     this.rl.on('close', () => process.exit())
-    this.rl.on('line', line => {
+    this.rl.on('line', async line => {
       try {
-        const argv = this.parser.parse(line, (err, argv, output) => {
-          if (output) {
-            console.log(output)
-          }
-        })
+        const argv = this.parser.parse(line, () => {})
         console.log('ARGV', argv)
+        if (argv._.length) {
+          await this.cmds.get(argv._[0])(argv)
+        } else if (argv.help) {
+          this.parser.showHelp()
+        }
       } catch (e) {
         //console.log(e)
       }
@@ -76,16 +75,12 @@ class Shell {
 
   cmd(
     name: string,
+    args: string,
     desc: string,
     handler: (args: any) => void
   ) {
     this.cmds.set(name, handler)
-    return this.parser.command(name, desc, {}, args => this.call(name, args))
-  }
-
-  call(cmd: string, args) {
-    console.log(`cmd: ${cmd}, args: ${args}`)
-    this.cmds.get(cmd)(args)
+    return this.parser.command(`${name} ${args}`, desc)
   }
 }
 
