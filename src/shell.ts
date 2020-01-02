@@ -13,7 +13,10 @@ export const shell = (
 
 /*** Route ***/
 class Route {
-  constructor(private name: string, private shell: Shell) {}
+  private cmds = new Map()
+  private parser = yargs()
+
+  constructor(private name: string) {}
 
   cmd(
     name: string,
@@ -21,7 +24,26 @@ class Route {
     desc: string,
     handler: (args: any) => void
   ) {
-    return this.shell.cmd(`${this.name} ${name}`, args, desc, handler)
+    this.cmds.set(name, handler)
+    return this.parser.command(`${name} ${args}`, desc)
+  }
+
+  run(line: string, args: any) {
+    // Strip off the "route" command.
+    const parts = line.split(' ')
+    parts.shift()
+    const argv = this.parser.parse(parts.join(' '), () => {})
+    return this.cmds.get(argv._[0])(argv)
+  }
+}
+
+
+/*** Command  ***/
+class Command {
+  constructor(private handler: (args: any) => void) {}
+
+  run(line: string, args: any) {
+    return this.handler(args)
   }
 }
 
@@ -29,7 +51,7 @@ class Route {
 /*** Shell ***/
 class Shell {
   private rl: readline.Interface
-  private cmds = new Map()
+  private cmds = new Map<string, Command | Route>()
   private state = new Map()
   private parser = yargs()
 
@@ -51,9 +73,13 @@ class Shell {
     this.rl.on('line', async line => {
       try {
         const argv = this.parser.parse(line, () => {})
-        console.log('ARGV', argv)
         if (argv._.length) {
-          await this.cmds.get(argv._[0])(argv)
+          const cmd = this.cmds.get(argv._[0])
+          if (cmd) {
+            await cmd.run(line, argv)
+          } else {
+            console.log('Unknown command')
+          }
         } else if (argv.help) {
           this.parser.showHelp()
         }
@@ -71,7 +97,11 @@ class Shell {
 
   set prompt(prompt: string) { this.rl.setPrompt(prompt) }
   set(key: string, value: any) { this.state.set(key, value) }
-  use(name: string, desc: string) { return new Route(name, this) }
+  use(name: string, desc: string) {
+    const route = new Route(name)
+    this.cmds.set(name, route)
+    return route
+  }
 
   cmd(
     name: string,
@@ -79,7 +109,8 @@ class Shell {
     desc: string,
     handler: (args: any) => void
   ) {
-    this.cmds.set(name, handler)
+    const cmd = new Command(handler)
+    this.cmds.set(name, cmd)
     return this.parser.command(`${name} ${args}`, desc)
   }
 }
